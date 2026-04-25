@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AquaSakhi — AI-Powered Water Scarcity Early Warning System</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --teal:    #00766e;
+    --teal-dk: #00544f;
+    --teal-lt: #e6f7f6;
+    --red:     #ef4444;
+    --amber:   #f59e0b;
+    --green:   #22c55e;
+    --slate:   #64748b;
+    --bg:      #f0f9f8;
+    --card:    #ffffff;
+    --border:  #e2e8f0;
+    --text:    #1e293b;
+  }
+
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ── Header ── */
+  header {
+    background: linear-gradient(135deg, #00544f 0%, #00766e 60%, #009e94 100%);
+    padding: 0 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 4px 20px rgba(0,84,79,0.3);
+    flex-wrap: wrap; gap: 10px;
+  }
+  .logo { display:flex; align-items:center; gap:14px; padding: 14px 0; }
+  .logo-icon { width:44px; height:44px; border-radius:12px; background:rgba(255,255,255,0.2); display:flex; align-items:center; justify-content:center; font-size:22px; }
+  .logo-name { color:#fff; font-weight:800; font-size:22px; font-family:'Playfair Display',serif; letter-spacing:-0.5px; }
+  .logo-sub  { color:#a7f3d0; font-size:10px; letter-spacing:0.12em; margin-top:2px; }
+
+  nav { display:flex; gap:6px; }
+  nav button {
+    padding: 7px 18px; border-radius:8px; border:none; cursor:pointer;
+    background: transparent; color: rgba(255,255,255,0.6);
+    font-weight:500; font-size:13px; font-family:'DM Sans',sans-serif;
+    transition: all 0.2s;
+  }
+  nav button.active, nav button:hover { background: rgba(255,255,255,0.2); color:#fff; font-weight:700; }
+
+  .header-meta { color:#a7f3d0; font-size:12px; padding: 8px 0; }
+
+  /* ── Layout ── */
+  main { padding: 24px 28px; max-width: 1300px; margin: 0 auto; }
+
+  /* ── Tabs ── */
+  .tab-content { display:none; }
+  .tab-content.active { display:block; }
+
+  /* ── Stat Cards ── */
+  .stats-row { display:flex; gap:16px; margin-bottom:24px; flex-wrap:wrap; }
+  .stat-card {
+    background: var(--card); border-radius:14px; padding:18px 20px;
+    box-shadow: 0 2px 12px rgba(0,84,80,0.08); flex:1; min-width:140px;
+  }
+  .stat-val  { font-size:28px; font-weight:800; font-family:'Playfair Display',serif; }
+  .stat-lbl  { font-size:13px; color:var(--slate); margin-top:2px; }
+  .stat-sub  { font-size:11px; color:#94a3b8; margin-top:4px; }
+
+  /* ── Dashboard Grid ── */
+  .dash-grid { display:grid; grid-template-columns: 300px 1fr; gap:20px; }
+  @media(max-width:800px){ .dash-grid { grid-template-columns:1fr; } }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--card); border-radius:16px; padding:20px;
+    box-shadow: 0 2px 12px rgba(0,84,80,0.08);
+  }
+  .card-title { font-weight:700; font-size:14px; margin-bottom:12px; }
+
+  /* ── Map SVG ── */
+  #mapSvg { width:100%; cursor:pointer; }
+  .district-circle { transition: r 0.15s, stroke-width 0.15s; }
+
+  /* ── District Info ── */
+  .district-info { margin-top:12px; border-radius:10px; padding:12px 14px; }
+  .info-row { display:flex; justify-content:space-between; align-items:center; margin-top:6px; }
+  .info-label { font-size:12px; color:var(--slate); }
+  .info-val   { font-weight:700; font-size:13px; }
+
+  /* ── Risk Badge ── */
+  .badge { display:inline-block; padding:2px 10px; border-radius:99px; font-size:11px; font-weight:700; letter-spacing:0.05em; color:#fff; }
+  .badge-High     { background: var(--red); }
+  .badge-Moderate { background: var(--amber); }
+  .badge-Low      { background: var(--green); }
+
+  /* ── Charts column ── */
+  .charts-col { display:flex; flex-direction:column; gap:20px; }
+  .chart-wrap { height:180px; position:relative; }
+  .chart-wrap-sm { height:160px; position:relative; }
+  .chart-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+
+  /* ── Predict tab ── */
+  .predict-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  @media(max-width:800px){ .predict-grid { grid-template-columns:1fr; } }
+
+  select, input {
+    width:100%; margin-top:6px; padding:9px 12px; border-radius:8px;
+    border:1.5px solid var(--border); font-size:13px; background:#f8fafc;
+    font-family:'DM Sans',sans-serif; color:var(--text);
+  }
+  label { font-size:12px; font-weight:600; color:#374151; }
+
+  .forecast-box { border-radius:12px; padding:16px; margin-bottom:16px; }
+  .forecast-val { font-size:32px; font-weight:800; font-family:'Playfair Display',serif; }
+  .forecast-sub { font-size:12px; color:var(--slate); margin-top:4px; }
+
+  .action-item { font-size:12px; padding:9px 12px; border-radius:8px; margin-bottom:8px; }
+
+  /* ── District list ── */
+  .district-list { display:flex; flex-direction:column; gap:8px; max-height:480px; overflow-y:auto; }
+  .district-row {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 14px; border-radius:10px; cursor:pointer;
+    border:1.5px solid var(--border); background:#f8fafc;
+    transition: all 0.15s;
+  }
+  .district-row:hover, .district-row.selected { background:var(--teal-lt); border-color:var(--teal); }
+  .district-row-name { font-weight:600; font-size:13px; }
+  .district-row-depth { font-size:11px; color:#94a3b8; margin-left:8px; }
+  .district-row-trend { font-size:11px; color:var(--slate); }
+
+  /* ── Alerts ── */
+  .alert-item {
+    display:flex; gap:14px; padding:14px 16px; border-radius:12px; margin-bottom:10px;
+  }
+  .alert-emoji { font-size:20px; margin-top:2px; }
+  .alert-title { font-weight:700; font-size:14px; }
+  .alert-msg   { font-size:13px; color:#475569; margin-top:4px; }
+  .alert-time  { font-size:11px; color:#94a3b8; }
+  .alert-header { display:flex; justify-content:space-between; align-items:center; }
+
+  /* ── Footer ── */
+  footer { text-align:center; padding:20px; color:#94a3b8; font-size:12px; border-top:1px solid var(--border); margin-top:20px; }
+
+  /* ── Section headings ── */
+  .section-title { font-weight:700; font-size:16px; margin-bottom:4px; }
+  .section-sub   { font-size:12px; color:var(--slate); margin-bottom:16px; }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">💧</div>
+    <div>
+      <div class="logo-name">AquaSakhi</div>
+      <div class="logo-sub">AI-POWERED WATER SCARCITY EARLY WARNING SYSTEM</div>
+    </div>
+  </div>
+  <nav>
+    <button class="active" onclick="switchTab('dashboard',this)">Dashboard</button>
+    <button onclick="switchTab('predict',this)">Predict</button>
+    <button onclick="switchTab('alerts',this)">Alerts</button>
+  </nav>
+  <div class="header-meta">📍 Andhra Pradesh &nbsp;|&nbsp; Updated Apr 2026</div>
+</header>
+
+<main>
+
+  <!-- ── STAT CARDS ── -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-val" style="color:var(--red)">3</div>
+      <div class="stat-lbl">High Risk Districts</div>
+      <div class="stat-sub">Immediate intervention needed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color:var(--amber)">4</div>
+      <div class="stat-lbl">Moderate Risk Districts</div>
+      <div class="stat-sub">Close monitoring required</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color:var(--teal)">7.3m</div>
+      <div class="stat-lbl">Avg Groundwater Depth</div>
+      <div class="stat-sub">Below surface across AP</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val" style="color:#0891b2">10</div>
+      <div class="stat-lbl">Districts Monitored</div>
+      <div class="stat-sub">Andhra Pradesh</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- TAB: DASHBOARD                             -->
+  <!-- ══════════════════════════════════════════ -->
+  <div id="tab-dashboard" class="tab-content active">
+    <div class="dash-grid">
+
+      <!-- Map Card -->
+      <div class="card">
+        <div class="card-title">District Risk Map</div>
+        <svg id="mapSvg" viewBox="0 0 280 320" xmlns="http://www.w3.org/2000/svg">
+          <rect width="280" height="320" rx="12" fill="#e8f4f3"/>
+          <text x="140" y="18" text-anchor="middle" fill="#00544f" font-size="11" font-weight="700" font-family="DM Sans,sans-serif">Andhra Pradesh Districts</text>
+          <!-- Circles drawn by JS -->
+          <g id="mapCircles"></g>
+          <!-- Legend -->
+          <circle cx="14" cy="282" r="5" fill="#ef4444"/>
+          <text x="22" y="283" font-size="8" fill="#374151" dominant-baseline="middle" font-family="DM Sans,sans-serif">High Risk</text>
+          <circle cx="14" cy="296" r="5" fill="#f59e0b"/>
+          <text x="22" y="297" font-size="8" fill="#374151" dominant-baseline="middle" font-family="DM Sans,sans-serif">Moderate Risk</text>
+          <circle cx="14" cy="310" r="5" fill="#22c55e"/>
+          <text x="22" y="311" font-size="8" fill="#374151" dominant-baseline="middle" font-family="DM Sans,sans-serif">Low Risk</text>
+        </svg>
+
+        <div id="districtInfo" class="district-info"></div>
+      </div>
+
+      <!-- Charts -->
+      <div class="charts-col">
+        <div class="card">
+          <div class="chart-header">
+            <div class="card-title" style="margin-bottom:0" id="trendTitle">Groundwater Level Trend</div>
+            <span id="trendBadge" class="badge"></span>
+          </div>
+          <div style="font-size:11px;color:var(--slate);margin-bottom:8px">SVR Prediction (RBF Kernel)</div>
+          <div class="chart-wrap">
+            <canvas id="trendChart"></canvas>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title" id="rainfallTitle">Monthly Rainfall</div>
+          <div class="chart-wrap-sm">
+            <canvas id="rainfallChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- TAB: PREDICT                              -->
+  <!-- ══════════════════════════════════════════ -->
+  <div id="tab-predict" class="tab-content">
+    <div class="predict-grid">
+
+      <div class="card">
+        <div class="section-title">6-Month Forecast</div>
+        <div class="section-sub">SVR (regression) + SVC (classification) prediction</div>
+
+        <div style="margin-bottom:14px">
+          <label>Select District</label>
+          <select id="predictSelect" onchange="updatePredict()"></select>
+        </div>
+
+        <div id="forecastBox" class="forecast-box"></div>
+        <div style="font-weight:700; font-size:13px; margin-bottom:8px">Recommended Actions</div>
+        <div id="actionsList"></div>
+      </div>
+
+      <div class="card">
+        <div class="section-title" style="margin-bottom:16px">All Districts Risk Overview</div>
+        <div class="district-list" id="districtList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ -->
+  <!-- TAB: ALERTS                               -->
+  <!-- ══════════════════════════════════════════ -->
+  <div id="tab-alerts" class="tab-content">
+    <div class="card" style="margin-bottom:20px">
+      <div class="section-title" style="margin-bottom:16px">🔔 Active Climate Risk Alerts</div>
+      <div id="alertsList"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">District Groundwater Depth Comparison</div>
+      <div style="height:220px; position:relative">
+        <canvas id="alertsChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  AquaSakhi v1.0 &nbsp;|&nbsp; Team ACE IT — Vignan's Nirula Institute &nbsp;|&nbsp; WitchHunt 2026 &nbsp;|&nbsp; Climate Action Theme
+</footer>
+
+<script>
+// ─────────────────────────────────────────────
+// DATA
+// ─────────────────────────────────────────────
+const DISTRICTS = [
+  { id:"GNT", name:"Guntur",        risk:"High",     level:4.2,  rainfall:72,  trend:-0.8, cx:110, cy:200 },
+  { id:"KUR", name:"Kurnool",       risk:"High",     level:3.8,  rainfall:58,  trend:-1.1, cx:80,  cy:230 },
+  { id:"ANT", name:"Anantapur",     risk:"High",     level:3.1,  rainfall:45,  trend:-1.4, cx:55,  cy:260 },
+  { id:"KDP", name:"Kadapa",        risk:"Moderate", level:6.5,  rainfall:88,  trend:-0.4, cx:90,  cy:255 },
+  { id:"NLR", name:"Nellore",       risk:"Moderate", level:7.2,  rainfall:96,  trend:-0.2, cx:120, cy:270 },
+  { id:"EGD", name:"East Godavari", risk:"Moderate", level:8.1,  rainfall:118, trend:-0.3, cx:180, cy:155 },
+  { id:"KRS", name:"Krishna",       risk:"Moderate", level:6.9,  rainfall:94,  trend:-0.5, cx:145, cy:185 },
+  { id:"VIZ", name:"Vizianagaram",  risk:"Low",      level:10.1, rainfall:142, trend:0.3,  cx:220, cy:110 },
+  { id:"SRI", name:"Srikakulam",    risk:"Low",      level:11.4, rainfall:160, trend:0.6,  cx:240, cy:80  },
+  { id:"WGD", name:"West Godavari", risk:"Low",      level:9.8,  rainfall:138, trend:0.1,  cx:155, cy:165 },
+];
+
+const RISK_COLOR = { High:"#ef4444", Moderate:"#f59e0b", Low:"#22c55e" };
+const RISK_BG    = { High:"#fef2f2", Moderate:"#fffbeb", Low:"#f0fdf4" };
+const RISK_TEXT  = { High:"#7f1d1d", Moderate:"#78350f", Low:"#14532d" };
+
+const MONTHS = ["Jul'24","Aug","Sep","Oct","Nov","Dec","Jan'25","Feb","Mar","Apr","May","Jun",
+                "Jul","Aug","Sep","Oct","Nov","Dec","Jan'26","Feb","Mar","Apr"];
+
+function genSeries(level, trend) {
+  return MONTHS.map((m, i) => ({
+    month: m,
+    actual:    +(level + trend * i * 0.4 + (Math.random()-.5)*0.5).toFixed(2),
+    predicted: +(level + trend * (i+3) * 0.4 + (Math.random()-.5)*0.3).toFixed(2),
+    rainfall:  Math.max(0, Math.round(80 + Math.sin(i*0.5)*60 + (Math.random()-.5)*25)),
+  }));
+}
+
+let selectedDistrict = DISTRICTS[0];
+let seriesCache = {};
+DISTRICTS.forEach(d => { seriesCache[d.id] = genSeries(d.level, d.trend); });
+
+// ─────────────────────────────────────────────
+// TAB SWITCHING
+// ─────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ─────────────────────────────────────────────
+// MAP
+// ─────────────────────────────────────────────
+function buildMap() {
+  const g = document.getElementById('mapCircles');
+  g.innerHTML = '';
+  DISTRICTS.forEach(d => {
+    const r = selectedDistrict.id === d.id ? 22 : 17;
+    const sw = selectedDistrict.id === d.id ? 3 : 1.5;
+    const sc = selectedDistrict.id === d.id ? '#00544f' : 'white';
+    g.innerHTML += `
+      <g onclick="selectDistrict('${d.id}')" style="cursor:pointer">
+        <circle cx="${d.cx}" cy="${d.cy}" r="${r}" fill="${RISK_COLOR[d.risk]}"
+          opacity="0.88" stroke="${sc}" stroke-width="${sw}"/>
+        <text x="${d.cx}" y="${d.cy+1}" text-anchor="middle" dominant-baseline="middle"
+          fill="white" font-size="7.5" font-weight="700" font-family="DM Sans,sans-serif">${d.id}</text>
+      </g>`;
+  });
+}
+
+function updateDistrictInfo() {
+  const d = selectedDistrict;
+  document.getElementById('districtInfo').style.background = RISK_BG[d.risk];
+  document.getElementById('districtInfo').innerHTML = `
+    <div style="font-weight:700;font-size:14px">${d.name}</div>
+    <div class="info-row">
+      <span class="info-label">Risk Level</span>
+      <span class="badge badge-${d.risk}">${d.risk.toUpperCase()}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">GW Depth</span>
+      <span class="info-val">${d.level} m</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Rainfall</span>
+      <span class="info-val">${d.rainfall} mm/yr avg</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">Trend</span>
+      <span class="info-val" style="color:${d.trend<0?'#ef4444':'#22c55e'}">
+        ${d.trend>0?'▲ Improving':'▼ Declining'} (${d.trend} m/yr)
+      </span>
+    </div>`;
+}
+
+function selectDistrict(id) {
+  selectedDistrict = DISTRICTS.find(d => d.id === id);
+  buildMap();
+  updateDistrictInfo();
+  updateTrendChart();
+  updateRainfallChart();
+  // Update predict tab if open
+  document.getElementById('predictSelect').value = id;
+  updatePredict();
+}
+
+// ─────────────────────────────────────────────
+// CHARTS (Chart.js)
+// ─────────────────────────────────────────────
+let trendChartInst, rainfallChartInst, alertsChartInst;
+
+function updateTrendChart() {
+  const d = selectedDistrict;
+  const s = seriesCache[d.id].slice(-12);
+  document.getElementById('trendTitle').textContent = `Groundwater Level Trend — ${d.name}`;
+  document.getElementById('trendBadge').textContent = d.risk.toUpperCase();
+  document.getElementById('trendBadge').className = `badge badge-${d.risk}`;
+
+  const labels = s.map(r => r.month);
+  const actual = s.map(r => r.actual);
+  const predicted = s.map(r => r.predicted);
+
+  if (trendChartInst) trendChartInst.destroy();
+  trendChartInst = new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'Actual (m)', data: actual, borderColor:'#00766e', borderWidth:2.5,
+          pointRadius:0, tension:0.4, fill:false },
+        { label:'Predicted (m)', data: predicted, borderColor:'#f59e0b', borderWidth:2,
+          borderDash:[5,3], pointRadius:0, tension:0.4, fill:false },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ font:{size:11}, boxWidth:20 } } },
+      scales:{
+        y:{ reverse:true, ticks:{font:{size:10}}, grid:{color:'#f1f5f9'}, title:{display:true, text:'Depth (m)', font:{size:10}} },
+        x:{ ticks:{font:{size:9}} }
+      }
+    }
+  });
+}
+
+function updateRainfallChart() {
+  const d = selectedDistrict;
+  const s = seriesCache[d.id].slice(-12);
+  document.getElementById('rainfallTitle').textContent = `Monthly Rainfall — ${d.name}`;
+
+  const labels = s.map(r => r.month);
+  const vals = s.map(r => r.rainfall);
+
+  if (rainfallChartInst) rainfallChartInst.destroy();
+  rainfallChartInst = new Chart(document.getElementById('rainfallChart'), {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[{ label:'Rainfall (mm)', data:vals, backgroundColor:'#0891b2',
+        borderRadius:4, borderSkipped:false }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ font:{size:11}, boxWidth:20 } } },
+      scales:{
+        y:{ ticks:{font:{size:10}}, grid:{color:'#f1f5f9'} },
+        x:{ ticks:{font:{size:9}} }
+      }
+    }
+  });
+}
+
+function buildAlertsChart() {
+  const labels = DISTRICTS.map(d => d.name.split(' ')[0]);
+  const vals   = DISTRICTS.map(d => d.level);
+  const colors = DISTRICTS.map(d => RISK_COLOR[d.risk]);
+
+  if (alertsChartInst) alertsChartInst.destroy();
+  alertsChartInst = new Chart(document.getElementById('alertsChart'), {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[{ label:'GW Depth (m)', data:vals, backgroundColor:colors, borderRadius:5 }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{
+        y:{
+          reverse:true,
+          ticks:{font:{size:10}},
+          grid:{color:'#f1f5f9'},
+          title:{display:true, text:'Depth ↓ (m)', font:{size:10}}
+        },
+        x:{ ticks:{font:{size:10}} }
+      }
+    }
+  });
+}
+
+// ─────────────────────────────────────────────
+// PREDICT TAB
+// ─────────────────────────────────────────────
+const ACTIONS = {
+  High:[
+    "🚫 Restrict borewell extraction immediately",
+    "💧 Deploy mobile water supply units",
+    "🌱 Initiate rainwater harvesting scheme",
+    "📢 Alert district administration",
+  ],
+  Moderate:[
+    "⚠️ Monitor weekly extraction levels",
+    "💡 Promote drip irrigation adoption",
+    "📊 Submit monthly compliance reports",
+  ],
+  Low:[
+    "✅ Continue routine monitoring",
+    "📋 Document recharge patterns",
+    "🔄 Share data with neighboring districts",
+  ]
+};
+
+function buildPredictSelect() {
+  const sel = document.getElementById('predictSelect');
+  DISTRICTS.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d.id; opt.textContent = d.name;
+    sel.appendChild(opt);
+  });
+}
+
+function updatePredict() {
+  const id = document.getElementById('predictSelect').value;
+  const d  = DISTRICTS.find(x => x.id === id);
+  const predicted6m = (d.level + d.trend * 6 * 0.4).toFixed(1);
+
+  document.getElementById('forecastBox').style.background = RISK_BG[d.risk];
+  document.getElementById('forecastBox').innerHTML = `
+    <div style="font-size:12px;color:var(--slate)">Predicted GW depth in 6 months</div>
+    <div class="forecast-val" style="color:${RISK_COLOR[d.risk]}">${predicted6m} m</div>
+    <div class="forecast-sub">
+      Trend: ${d.trend>0?'▲ Improving':'▼ Declining'}
+      &nbsp;(${d.trend>0?'+':''}${d.trend} m/yr)
+    </div>`;
+
+  const actionsEl = document.getElementById('actionsList');
+  actionsEl.innerHTML = ACTIONS[d.risk].map(a =>
+    `<div class="action-item" style="background:${RISK_BG[d.risk]};color:${RISK_TEXT[d.risk]}">${a}</div>`
+  ).join('');
+
+  // Update district list highlight
+  document.querySelectorAll('.district-row').forEach(row => {
+    row.classList.toggle('selected', row.dataset.id === id);
+  });
+}
+
+function buildDistrictList() {
+  const list = document.getElementById('districtList');
+  list.innerHTML = DISTRICTS.map(d => `
+    <div class="district-row" data-id="${d.id}" onclick="document.getElementById('predictSelect').value='${d.id}'; updatePredict();">
+      <div>
+        <span class="district-row-name">${d.name}</span>
+        <span class="district-row-depth">${d.level}m</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="district-row-trend" style="color:${d.trend<0?'#ef4444':'#22c55e'}">
+          ${d.trend>0?'▲':'▼'} ${Math.abs(d.trend)}m/yr
+        </span>
+        <span class="badge badge-${d.risk}">${d.risk.toUpperCase()}</span>
+      </div>
+    </div>`
+  ).join('');
+}
+
+// ─────────────────────────────────────────────
+// ALERTS TAB
+// ─────────────────────────────────────────────
+const ALERTS_DATA = [
+  { district:"Anantapur",     type:"Critical Depletion", msg:"Groundwater level dropped below 3m. Emergency extraction restrictions recommended.", time:"2 hours ago", sev:"High" },
+  { district:"Kurnool",       type:"Monsoon Deficit",    msg:"Rainfall 40% below seasonal average. High depletion risk projected for next 3 months.", time:"6 hours ago", sev:"High" },
+  { district:"Guntur",        type:"Trend Alert",        msg:"Consistent declining trend (-0.8m/yr) detected. Preventive action advised.", time:"1 day ago", sev:"High" },
+  { district:"Kadapa",        type:"Moderate Stress",    msg:"Groundwater nearing moderate stress threshold. Monitor closely.", time:"2 days ago", sev:"Moderate" },
+  { district:"Krishna",       type:"Seasonal Warning",   msg:"Pre-monsoon levels 15% lower than historical average.", time:"3 days ago", sev:"Moderate" },
+  { district:"East Godavari", type:"Watch Notice",       msg:"Gradual decline observed over last 4 months. Monitoring frequency increased.", time:"4 days ago", sev:"Moderate" },
+];
+
+function buildAlerts() {
+  document.getElementById('alertsList').innerHTML = ALERTS_DATA.map(a => `
+    <div class="alert-item" style="background:${RISK_BG[a.sev]};border-left:4px solid ${RISK_COLOR[a.sev]}">
+      <div class="alert-emoji">${a.sev==='High'?'🚨':'⚠️'}</div>
+      <div style="flex:1">
+        <div class="alert-header">
+          <span class="alert-title">${a.district} — ${a.type}</span>
+          <span class="alert-time">${a.time}</span>
+        </div>
+        <div class="alert-msg">${a.msg}</div>
+      </div>
+      <div><span class="badge badge-${a.sev}">${a.sev.toUpperCase()}</span></div>
+    </div>`
+  ).join('');
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+window.addEventListener('load', () => {
+  buildMap();
+  updateDistrictInfo();
+  updateTrendChart();
+  updateRainfallChart();
+  buildPredictSelect();
+  buildDistrictList();
+  updatePredict();
+  buildAlerts();
+  buildAlertsChart();
+});
+</script>
+</body>
+</html>
